@@ -1,0 +1,99 @@
+services:
+  database:
+    image: postgres:14.4-alpine
+    restart: "always"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: click_tracker
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - network
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      - network
+  db_migration:
+    restart: "no"
+    build:
+      dockerfile: ./Dockerfile
+    env_file: []
+    environment:
+      DB_URL: "postgresql+asyncpg://user:password@database:5432/click_tracker"
+    command: >
+      bash -c \
+      "uv run alembic -c dbmodels/alembic.ini upgrade head"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - network
+  api:
+    restart: "no"
+    profiles:
+      - apps
+    ports:
+      - "8080:8080"
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: "uv run uvicorn --proxy-headers --host 0.0.0.0 --port 8080 api.app.app:app"
+    depends_on:
+      db_migration:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .docker.env
+    networks:
+      - network
+  consumer:
+    restart: "no"
+    profiles:
+      - apps
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: "uv run python run_consumer.py"
+    depends_on:
+      db_migration:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .docker.env
+    networks:
+      - network
+  cron:
+    restart: "no"
+    profiles:
+      - apps
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: "uv run python run_cron.py"
+    depends_on:
+      db_migration:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .docker.env
+    networks:
+      - network
+networks:
+  network:
