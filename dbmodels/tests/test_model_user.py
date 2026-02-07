@@ -1,3 +1,5 @@
+"""Tests for the User SQLAlchemy model (persistence and processing_state)."""
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

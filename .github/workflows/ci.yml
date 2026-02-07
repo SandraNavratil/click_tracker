@@ -87,3 +87,71 @@ jobs:
             ${{ env.IMAGE_TAG }} \
             uv run python -m pytest -vv --asyncio-mode=auto \
               --color=yes --showlocals ./dbmodels
+
+  common_test:
+    name: Test · common
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
+      postgres:
+        image: postgres:14.4-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: click_tracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ENVIRONMENT: test
+      DB_URL: postgresql+asyncpg://user:password@localhost:5432/click_tracker
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: image
+      - run: gunzip -c image.tar.gz | docker load
+      - run: |
+          docker run --rm --network host \
+            -e DB_URL="${{ env.DB_URL }}" \
+            -e ENVIRONMENT="${{ env.ENVIRONMENT }}" \
+            ${{ env.IMAGE_TAG }} \
+            uv run python -m pytest -vv --asyncio-mode=auto \
+              --color=yes --showlocals ./common
+
+  api_test:
+    name: Test · api
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
+      postgres:
+        image: postgres:14.4-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: click_tracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ENVIRONMENT: test
+      DB_URL: postgresql+asyncpg://user:password@localhost:5432/click_tracker
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: image
+      - run: gunzip -c image.tar.gz | docker load
+      - run: |
+          docker run --rm --network host \
+            -e DB_URL="${{ env.DB_URL }}" \
+            -e ENVIRONMENT="${{ env.ENVIRONMENT }}" \
+            ${{ env.IMAGE_TAG }} \
+            uv run python -m pytest -vv --asyncio-mode=auto \
+              --color=yes --showlocals ./api

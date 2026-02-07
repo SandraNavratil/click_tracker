@@ -1,3 +1,5 @@
+"""Factories for creating model instances in tests."""
+
 from collections.abc import Callable
 from unittest.mock import MagicMock
 from uuid import uuid4

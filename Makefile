@@ -1,10 +1,8 @@
 DCOMPOSE=docker-compose
-# Bring up all services
 .PHONY: up
 up:
 	$(DCOMPOSE) up -d
 
-# Bring up all services
 .PHONY: up-empty-database
 up-empty-database:
 	$(DCOMPOSE) up -d database
@@ -14,14 +12,16 @@ up-empty-database:
 up-db_migration:
 	$(DCOMPOSE) up db_migration
 
-# Bring up specific profiles (e.g., app services)
 .PHONY: up-apps
 up-apps: up
 	$(DCOMPOSE) up -d --profile apps
 
 .PHONY: up-api
-up-api: up
-	$(DCOMPOSE) up -d api
+up-api:
+	$(DCOMPOSE) up -d database
+	@sleep 3
+	$(DCOMPOSE) up db_migration
+	$(DCOMPOSE) --profile apps up -d api
 
 .PHONY: up-consumer
 up-consumer: up
@@ -31,12 +31,10 @@ up-consumer: up
 up-cron: up
 	$(DCOMPOSE) up -d cron
 
-# Take down all services
 .PHONY: down
 down:
 	$(DCOMPOSE) down
 
-# Clean up services by stopping and removing containers, networks, images, and volumes
 .PHONY: clean
 clean:
 	$(DCOMPOSE) down --volumes --remove-orphans
@@ -50,7 +48,6 @@ pre-commit:
 	pre-commit install --install-hooks
 	pre-commit run --all-files
 
-# Database migration(s)
 .PHONY: create-migration
 create-migration:
 	@if [ -z "$(name)" ]; then \
@@ -75,7 +72,7 @@ downgrade-db:
 
 
 .PHONY: test-setup
-test-setup:	# Set up test resources
+test-setup:
 	$(DCOMPOSE) down --volumes --remove-orphans
 	$(DCOMPOSE) up -d database
 	export ENVIRONMENT=test
@@ -83,7 +80,7 @@ test-setup:	# Set up test resources
 	@sleep 3
 
 .PHONY: test-api
-test-api: test-setup # Run tests for API
+test-api: test-setup
 	@echo "Running tests for API..."
 	uv run python -m pytest -vv \
 		--asyncio-mode=auto \
@@ -95,7 +92,7 @@ test-api: test-setup # Run tests for API
 		--cov=api ./api
 
 .PHONY: test-consumer
-test-consumer: test-setup	# Run tests for Consumer
+test-consumer: test-setup
 	@echo "Running tests for Consumer..."
 	uv run python -m pytest -vv \
 		--asyncio-mode=auto \
@@ -107,7 +104,7 @@ test-consumer: test-setup	# Run tests for Consumer
 		--cov=consumer ./consumer
 
 .PHONY: test-cron
-test-cron: test-setup	# Run tests for Cron
+test-cron: test-setup
 	@echo "Running tests for Cron..."
 	uv run python -m pytest -vv \
 		--asyncio-mode=auto \
@@ -119,7 +116,7 @@ test-cron: test-setup	# Run tests for Cron
 		--cov=cron ./cron
 
 .PHONY: test-dbmodels
-test-dbmodels: test-setup	# Run tests for DB Models
+test-dbmodels: test-setup
 	@echo "Running tests for DB Models..."
 	uv run python -m pytest -vv \
 		--asyncio-mode=auto \
@@ -131,23 +128,34 @@ test-dbmodels: test-setup	# Run tests for DB Models
 		--cov=dbmodels ./dbmodels
 
 .PHONY: test
-test: test-dbmodels test-api test-consumer test-cron	# Run all tests
+test: test-dbmodels test-api test-consumer test-cron
 
 
 .PHONY: upgrade-requirements
-upgrade-requirements:	# Upgrade requirements files
+upgrade-requirements:
 	uv sync --upgrade
 
 .PHONY: install-requirements
-install-requirements:	# Install requirements
+install-requirements:
 	uv venv
 	uv sync
 
 .PHONY: clean-test
-clean-test:	# Clean up test resources
+clean-test:
 	@echo "Cleaning up test resources..."
 	$(DCOMPOSE) down --volumes --remove-orphans
 
+# Load test: 1000 req/s for 60s (start API first: make up-api)
+.PHONY: load-test
+load-test:
+	uv run --extra load locust -f locustfile.py --host http://localhost:8080 \
+		--users 1000 --spawn-rate 1000 --run-time 60s --headless
+
+# Load test with web UI (open http://localhost:8089 to control users and view stats)
+.PHONY: load-test-ui
+load-test-ui:
+	uv run --extra load locust -f locustfile.py --host http://localhost:8080
+
 .PHONY: help
-help: # Shows help to all the commands
+help:
 	@grep -E '^[a-zA-Z0-9 -]+:.*#'  Makefile | sort | while read -r l; do printf "\033[1;32m$$(echo $$l | cut -f 1 -d':')\033[00m:$$(echo $$l | cut -f 2- -d'#')\n"; done

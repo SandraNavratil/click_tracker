@@ -1,0 +1,1 @@
+"""Consumer application module."""

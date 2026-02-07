@@ -1,3 +1,5 @@
+"""Pytest fixtures for database tests: async engine, session, and database connection."""
+
 import nest_asyncio
 import pytest_asyncio
 from sqlalchemy import inspect, text

@@ -47,7 +47,7 @@ class DatabaseConnection:
         Yields:
             AsyncSession: A scoped async session. Session is closed when exiting the context.
         """
-        async with self.session_maker() as session:
+        async with self.session_maker.begin() as session:
             logger.debug("get_session.session.begin")
             yield session
         logger.debug("get_session.session.end")
