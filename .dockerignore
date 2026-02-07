@@ -1,0 +1,52 @@
+# Docker / Compose
+**/docker-compose.override.yml
+**/.env
+.env
+
+# Git
+**/.git
+.git
+
+# Editor / IDE
+**/*~
+**/.idea
+
+# Python
+**/__pycache__
+**/*.py[cod]
+**/*.pyc
+**/settings_local.py
+**/conftest_local.py
+*.pyc
+*.egg
+*.egg-info
+*.cfg
+
+# Virtual envs
+env
+venv
+
+# Testing / coverage
+**/.pytest_cache
+**/htmlcov
+**/.cache
+**/.coverage
+.coverage
+.tox
+nosetests.xml
+
+# Node
+**/.serverless
+**/node_modules
+**/package.json
+**/package-lock.json
+
+# Build / dist
+dist
+build
+eggs
+**/README.md
+
+# Misc
+docs/kw
+pip-log.txt

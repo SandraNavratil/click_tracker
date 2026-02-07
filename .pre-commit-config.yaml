@@ -1,0 +1,49 @@
+default_language_version:
+    python: python3.13
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: debug-statements
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-merge-conflict
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.2
+    hooks:
+    - id: mypy
+      args: [
+        '--namespace-packages',
+        '--explicit-package-bases'
+      ]
+      exclude: |
+        (?x)(^
+          dbmodels/alembic/.*
+        | dbmodels/tests.*
+        $)
+      additional_dependencies:
+      - pydantic
+      - pydantic_settings
+      - fastapi
+      - structlog
+      - sqlalchemy[mypy]==2.0.36  # Issue with mypy upgrade to 1.18.2, should be cross-checked again with new version
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.14.0
+
+    hooks:
+      # Run the linter.
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      # Run the formatter.
+      - id: ruff-format
