@@ -30,5 +30,5 @@ COPY consumer/run.py ./run_consumer.py
 COPY dbmodels ./dbmodels/
 COPY common ./common/
 COPY api ./api/
-COPY consumer/app ./consumer/app/
-COPY cron/app ./cron/app/
+COPY consumer ./consumer
+COPY cron ./cron

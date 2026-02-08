@@ -74,10 +74,10 @@ downgrade-db:
 .PHONY: test-setup
 test-setup:
 	$(DCOMPOSE) down --volumes --remove-orphans
-	$(DCOMPOSE) up -d database
+	$(DCOMPOSE) up -d database rabbitmq
 	export ENVIRONMENT=test
-	# Wait for the database to be fully ready
-	@sleep 3
+	# Wait for the database and RabbitMQ to be ready
+	@sleep 5
 
 .PHONY: test-api
 test-api: test-setup
@@ -127,8 +127,20 @@ test-dbmodels: test-setup
 		--cov-report term-missing \
 		--cov=dbmodels ./dbmodels
 
+.PHONY: test-common
+test-common: test-setup
+	@echo "Running tests for Common..."
+	uv run python -m pytest -vv \
+		--asyncio-mode=auto \
+		--color=yes \
+		--code-highlight=yes \
+		--showlocals \
+		--cov-config=.coveragerc \
+		--cov-report term-missing \
+		--cov=common ./common
+
 .PHONY: test
-test: test-dbmodels test-api test-consumer test-cron
+test: test-dbmodels test-api test-consumer test-cron test-common
 
 
 .PHONY: upgrade-requirements
