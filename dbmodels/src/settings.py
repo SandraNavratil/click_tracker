@@ -1,3 +1,5 @@
+"""Database connection and pool settings loaded from environment."""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import AsyncAdaptedQueuePool, Pool
 
@@ -15,12 +17,12 @@ class DatabaseSettings(BaseSettings):
     db_url: str = "postgresql+asyncpg://user:password@0.0.0.0:5432/click_tracker"
 
     pool_class: type[Pool] = AsyncAdaptedQueuePool
-    pool_size: int = 5
-    pool_timeout: int = 30  # in seconds
-    pool_use_lifo: bool = False
+    pool_size: int = 20
+    pool_timeout: int = 30
+    pool_use_lifo: bool = True
     pool_pre_ping: bool = False
-    pool_recycle: int = 1200  # in seconds
-    max_overflow: int = 10
+    pool_recycle: int = 1200
+    max_overflow: int = 20
     autocommit: bool = False
     autoflush: bool = True
     expire_on_commit: bool = False

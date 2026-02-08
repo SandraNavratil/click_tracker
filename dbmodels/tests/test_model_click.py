@@ -1,3 +1,5 @@
+"""Tests for the Click SQLAlchemy model (persistence and relationships)."""
+
 import pytest
 from uuid import uuid4
 from sqlalchemy import select

@@ -1,3 +1,5 @@
+"""Tests for Alembic migrations (upgrade/downgrade)."""
+
 import pytest
 from alembic import command
 from alembic.config import Config

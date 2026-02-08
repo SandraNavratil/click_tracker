@@ -4,12 +4,13 @@ services:
     restart: "always"
     ports:
       - "5432:5432"
+    command: ["postgres", "-c", "max_connections=200"]
     environment:
       POSTGRES_DB: click_tracker
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user" ]
+      test: [ "CMD-SHELL", "pg_isready -U user -d click_tracker" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,12 +52,10 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    command: "uv run uvicorn --proxy-headers --host 0.0.0.0 --port 8080 api.app.app:app"
+    command: "uv run python -m uvicorn --proxy-headers --host 0.0.0.0 --port 8080 api.app.app:app"
     depends_on:
       db_migration:
         condition: service_completed_successfully
-      rabbitmq:
-        condition: service_healthy
     env_file:
       - .docker.env
     networks:
