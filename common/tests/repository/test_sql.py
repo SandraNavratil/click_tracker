@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
 
+from common.models.enums import ProcessingStatus
 from common.models.errors import EntityNotFound, MissingRequiredAttribute
 from common.models.factories import ClickFactory, UserFactory
 from common.repository.sql import SQLClickRepository
@@ -155,3 +156,115 @@ class TestSQLClickRepository:
         user_id = UserFactory.build().id
         with pytest.raises(MissingRequiredAttribute):
             await repository.get_user(user_id)
+
+    async def test_get_users_by_processing_state_returns_only_matching(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """get_users_by_processing_state returns only users with the given state."""
+        repository = SQLClickRepository(logger, db_connection)
+        user_new = UserFactory.build(processing_state=ProcessingStatus.new)
+        user_queued = UserFactory.build(processing_state=ProcessingStatus.queued)
+        user_done = UserFactory.build(processing_state=ProcessingStatus.done)
+        async with repository.unit_of_work():
+            await repository.save_user(user_new)
+            await repository.save_user(user_queued)
+            await repository.save_user(user_done)
+        async with repository.unit_of_work():
+            result_new = await repository.get_users_by_processing_state(
+                ProcessingStatus.new
+            )
+            result_queued = await repository.get_users_by_processing_state(
+                ProcessingStatus.queued
+            )
+            result_done = await repository.get_users_by_processing_state(
+                ProcessingStatus.done
+            )
+        assert len(result_new) == 1 and result_new[0].id == user_new.id
+        assert len(result_queued) == 1 and result_queued[0].id == user_queued.id
+        assert len(result_done) == 1 and result_done[0].id == user_done.id
+
+    async def test_get_users_by_processing_state_respects_limit(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """get_users_by_processing_state returns at most `limit` users."""
+        repository = SQLClickRepository(logger, db_connection)
+        users = [
+            UserFactory.build(processing_state=ProcessingStatus.new) for _ in range(5)
+        ]
+        async with repository.unit_of_work():
+            for user in users:
+                await repository.save_user(user)
+        async with repository.unit_of_work():
+            result = await repository.get_users_by_processing_state(
+                ProcessingStatus.new, limit=2
+            )
+            result_all = await repository.get_users_by_processing_state(
+                ProcessingStatus.new, limit=10
+            )
+        assert len(result) == 2
+        assert len(result_all) == 5
+
+    async def test_get_users_by_processing_state_empty_when_no_match(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """get_users_by_processing_state returns empty list when no users have that state."""
+        repository = SQLClickRepository(logger, db_connection)
+        user_queued = UserFactory.build(processing_state=ProcessingStatus.queued)
+        async with repository.unit_of_work():
+            await repository.save_user(user_queued)
+        async with repository.unit_of_work():
+            result = await repository.get_users_by_processing_state(
+                ProcessingStatus.new
+            )
+        assert result == []
+
+    async def test_get_users_by_processing_state_missing_transaction(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """get_users_by_processing_state without unit_of_work raises MissingRequiredAttribute."""
+        repository = SQLClickRepository(logger, db_connection)
+        with pytest.raises(MissingRequiredAttribute):
+            await repository.get_users_by_processing_state(ProcessingStatus.new)
+
+    async def test_update_user_processing_state_success(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """update_user_processing_state updates state and persists after commit."""
+        repository = SQLClickRepository(logger, db_connection)
+        user = UserFactory.build(processing_state=ProcessingStatus.new)
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        async with repository.unit_of_work():
+            updated = await repository.update_user_processing_state(
+                user.id, ProcessingStatus.done
+            )
+        assert updated.processing_state == ProcessingStatus.done
+        async with repository.unit_of_work():
+            loaded = await repository.get_user(user.id)
+        assert loaded.processing_state == ProcessingStatus.done
+
+    async def test_update_user_processing_state_not_found(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """update_user_processing_state for non-existent user raises EntityNotFound."""
+        repository = SQLClickRepository(logger, db_connection)
+        user = UserFactory.build()
+        with pytest.raises(EntityNotFound):
+            async with repository.unit_of_work():
+                await repository.update_user_processing_state(
+                    user.id, ProcessingStatus.queued
+                )
+
+    async def test_update_user_processing_state_missing_transaction(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """update_user_processing_state without unit_of_work raises MissingRequiredAttribute."""
+        repository = SQLClickRepository(logger, db_connection)
+        user = UserFactory.build()
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        user_id = user.id
+        with pytest.raises(MissingRequiredAttribute):
+            await repository.update_user_processing_state(
+                user_id, ProcessingStatus.queued
+            )

@@ -10,6 +10,7 @@ from structlog import BoundLogger
 
 from common.models.click import Click
 from common.models.user import User
+from common.models.enums import ProcessingStatus
 
 
 class AbstractClickRepository(ABC):
@@ -49,7 +50,7 @@ class AbstractClickRepository(ABC):
 
     @abstractmethod
     async def save_user(self, user: User) -> User:
-        """Save a user to the database.
+        """Save a user.
 
         Args:
             user: User to save.
@@ -60,11 +61,39 @@ class AbstractClickRepository(ABC):
 
     @abstractmethod
     async def save_click(self, click: Click) -> Click:
-        """Save a click to the database.
+        """Save a click.
 
         Args:
             click: Click to save.
 
         Returns:
-            Click: Saved click as stored in the DB.
+            Click: Saved click.
+        """
+
+    @abstractmethod
+    async def get_users_by_processing_state(
+        self, processing_state: ProcessingStatus, limit: int = 10000
+    ) -> list[User]:
+        """Get users with the given processing_state.
+
+        Args:
+            processing_state: Processing state to filter by.
+            limit: Maximum number of users to return, default is 10000.
+
+        Returns:
+            list[User]: List of users with the given processing_state.
+        """
+
+    @abstractmethod
+    async def update_user_processing_state(
+        self, user_id: UUID, processing_state: ProcessingStatus
+    ) -> User:
+        """Update the processing state of user.
+
+        Args:
+            user_id: User id.
+            processing_state: Processing state to update user to.
+
+        Returns:
+            User: Updated user.
         """

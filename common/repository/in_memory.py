@@ -12,6 +12,7 @@ from common.models.click import Click
 from common.models.user import User
 from common.models.errors import EntityNotFound, MissingRequiredAttribute
 from common.repository.abstract import AbstractClickRepository
+from common.models.enums import ProcessingStatus
 
 
 class InMemoryClickRepository(AbstractClickRepository):
@@ -57,6 +58,8 @@ class InMemoryClickRepository(AbstractClickRepository):
         Returns:
             User: User.
         """
+        if not self.transaction_started:
+            raise MissingRequiredAttribute("Session is required to get user.")
         key = self._get_key(str(user_id), "user")
         if key not in self._storage:
             raise EntityNotFound("User", str(user_id))
@@ -64,7 +67,7 @@ class InMemoryClickRepository(AbstractClickRepository):
 
     @override
     async def save_user(self, user: User) -> User:
-        """Store user in uncommitted storage; requires an active unit_of_work.
+        """Store user in uncommitted storage.
 
         Args:
             user: User to save.
@@ -79,7 +82,7 @@ class InMemoryClickRepository(AbstractClickRepository):
 
     @override
     async def save_click(self, click: Click) -> Click:
-        """Store click in uncommitted storage; requires an active unit_of_work.
+        """Store click in uncommitted storage.
 
         Args:
             click: Click to save.
@@ -91,6 +94,55 @@ class InMemoryClickRepository(AbstractClickRepository):
             raise MissingRequiredAttribute("Session is required to save new click.")
         self._uncommitted_storage[self._get_key(str(click.id), "click")] = click
         return click
+
+    @override
+    async def get_users_by_processing_state(
+        self, processing_state: ProcessingStatus, limit: int = 10000
+    ) -> list[User]:
+        """Get users with the given processing_state.
+
+        Args:
+            processing_state: Processing state to filter by.
+            limit: Maximum number of users to return, default is 10000.
+
+        Returns:
+            list[User]: List of users with the given processing_state.
+        """
+        if not self.transaction_started:
+            raise MissingRequiredAttribute(
+                "Session is required to get users by processing state."
+            )
+        return [
+            cast(User, value)
+            for key, value in self._storage.items()
+            if key.startswith("user_")
+            and cast(User, value).processing_state == processing_state
+        ][:limit]
+
+    @override
+    async def update_user_processing_state(
+        self, user_id: UUID, processing_state: ProcessingStatus
+    ) -> User:
+        """Update the processing state of a user.
+
+        Args:
+            user_id: User id.
+            processing_state: Processing state to update user to.
+
+        Returns:
+            User: Updated user.
+        """
+        if not self.transaction_started:
+            raise MissingRequiredAttribute(
+                "Session is required to update user processing state."
+            )
+        key = self._get_key(str(user_id), "user")
+        if (user := self._storage.get(key)) is None:
+            raise EntityNotFound("User", str(user_id))
+        user = cast(User, deepcopy(user))
+        user.processing_state = processing_state
+        self._uncommitted_storage[key] = user
+        return user
 
     def _commit(self) -> None:
         """Apply uncommitted changes to storage and clear the uncommitted map."""

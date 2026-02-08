@@ -1,4 +1,4 @@
-"""Application and RabbitMQ settings loaded from environment and optional env file."""
+"""Settings loaded from environment and optional env file."""
 
 import os
 
@@ -56,6 +56,9 @@ class RabbitMQSettings(SettingsWithConfig):
     rabbit_vhost: str = ""
     rabbit_query_params: str = "heartbeat=600&blocked_connection_timeout=300"
     rabbit_exchange_name: str = "click-tracker-exchange"
+    rabbit_exchange_type: str = "direct"
+    rabbit_queue_type: str = "quorum"
+    rabbit_delivery_limit: int = 3
     max_retry_count: int = 3
     rabbit_concurrency: int = 1
 

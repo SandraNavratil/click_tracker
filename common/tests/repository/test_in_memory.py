@@ -2,6 +2,7 @@
 
 import pytest
 
+from common.models.enums import ProcessingStatus
 from common.models.errors import EntityNotFound, MissingRequiredAttribute
 from common.models.factories import ClickFactory, UserFactory
 from common.repository.in_memory import InMemoryClickRepository
@@ -10,6 +11,21 @@ from common.repository.in_memory import InMemoryClickRepository
 @pytest.mark.asyncio
 class TestInMemoryClickRepository:
     """Tests for InMemoryClickRepository using in-process storage and unit of work."""
+
+    async def test_unit_of_work_rollback_on_exception(
+        self,
+        in_memory_click_repository: InMemoryClickRepository,
+    ) -> None:
+        """Uncommitted changes are discarded when unit_of_work exits with an exception."""
+        repository = in_memory_click_repository
+        user = UserFactory.build()
+        with pytest.raises(ValueError):
+            async with repository.unit_of_work():
+                await repository.save_user(user)
+                raise ValueError("abort")
+        with pytest.raises(EntityNotFound):
+            async with repository.unit_of_work():
+                await repository.get_user(user.id)
 
     @pytest.mark.parametrize("user_count", [0, 1, 2])
     async def test_save_user_success(
@@ -95,17 +111,137 @@ class TestInMemoryClickRepository:
             async with repository.unit_of_work():
                 await repository.get_user(UserFactory.build().id)
 
-    async def test_unit_of_work_rollback_on_exception(
+    async def test_get_user_missing_transaction(
         self,
         in_memory_click_repository: InMemoryClickRepository,
     ) -> None:
-        """Uncommitted changes are discarded when unit_of_work exits with an exception."""
+        """get_user without unit_of_work raises MissingRequiredAttribute."""
         repository = in_memory_click_repository
         user = UserFactory.build()
-        with pytest.raises(ValueError):
-            async with repository.unit_of_work():
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        user_id = user.id
+        with pytest.raises(MissingRequiredAttribute):
+            await repository.get_user(user_id)
+
+    async def test_get_users_by_processing_state_returns_only_matching(
+        self,
+        in_memory_click_repository: InMemoryClickRepository,
+    ) -> None:
+        """get_users_by_processing_state returns only users with the given state."""
+        repository = in_memory_click_repository
+        user_new = UserFactory.build(processing_state=ProcessingStatus.new)
+        user_queued = UserFactory.build(processing_state=ProcessingStatus.queued)
+        user_done = UserFactory.build(processing_state=ProcessingStatus.done)
+        async with repository.unit_of_work():
+            await repository.save_user(user_new)
+            await repository.save_user(user_queued)
+            await repository.save_user(user_done)
+        async with repository.unit_of_work():
+            result_new = await repository.get_users_by_processing_state(
+                ProcessingStatus.new
+            )
+            result_queued = await repository.get_users_by_processing_state(
+                ProcessingStatus.queued
+            )
+            result_done = await repository.get_users_by_processing_state(
+                ProcessingStatus.done
+            )
+        assert len(result_new) == 1 and result_new[0].id == user_new.id
+        assert len(result_queued) == 1 and result_queued[0].id == user_queued.id
+        assert len(result_done) == 1 and result_done[0].id == user_done.id
+
+    async def test_get_users_by_processing_state_respects_limit(
+        self,
+        in_memory_click_repository: InMemoryClickRepository,
+    ) -> None:
+        """get_users_by_processing_state returns at most `limit` users."""
+        repository = in_memory_click_repository
+        users = [
+            UserFactory.build(processing_state=ProcessingStatus.new) for _ in range(5)
+        ]
+        async with repository.unit_of_work():
+            for user in users:
                 await repository.save_user(user)
-                raise ValueError("abort")
+        async with repository.unit_of_work():
+            result = await repository.get_users_by_processing_state(
+                ProcessingStatus.new, limit=2
+            )
+            result_all = await repository.get_users_by_processing_state(
+                ProcessingStatus.new, limit=10
+            )
+        assert len(result) == 2
+        assert len(result_all) == 5
+
+    async def test_get_users_by_processing_state_empty_when_no_match(
+        self,
+        in_memory_click_repository: InMemoryClickRepository,
+    ) -> None:
+        """get_users_by_processing_state returns empty list when no users have that state."""
+        repository = in_memory_click_repository
+        user_queued = UserFactory.build(processing_state=ProcessingStatus.queued)
+        async with repository.unit_of_work():
+            await repository.save_user(user_queued)
+        async with repository.unit_of_work():
+            result = await repository.get_users_by_processing_state(
+                ProcessingStatus.new
+            )
+        assert result == []
+
+    async def test_get_users_by_processing_state_missing_transaction(
+        self,
+        in_memory_click_repository: InMemoryClickRepository,
+    ) -> None:
+        """get_users_by_processing_state without unit_of_work raises MissingRequiredAttribute."""
+        repository = in_memory_click_repository
+        user = UserFactory.build()
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        with pytest.raises(MissingRequiredAttribute):
+            await repository.get_users_by_processing_state(ProcessingStatus.new)
+
+    async def test_update_user_processing_state_success(
+        self,
+        in_memory_click_repository: InMemoryClickRepository,
+    ) -> None:
+        """update_user_processing_state updates state and persists after commit."""
+        repository = in_memory_click_repository
+        user = UserFactory.build(processing_state=ProcessingStatus.new)
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        async with repository.unit_of_work():
+            updated = await repository.update_user_processing_state(
+                user.id, ProcessingStatus.done
+            )
+        assert updated.processing_state == ProcessingStatus.done
+        async with repository.unit_of_work():
+            loaded = await repository.get_user(user.id)
+        assert loaded.processing_state == ProcessingStatus.done
+
+    async def test_update_user_processing_state_not_found(
+        self,
+        in_memory_click_repository: InMemoryClickRepository,
+    ) -> None:
+        """update_user_processing_state for non-existent user raises EntityNotFound."""
+        repository = in_memory_click_repository
+        user = UserFactory.build()
         with pytest.raises(EntityNotFound):
             async with repository.unit_of_work():
-                await repository.get_user(user.id)
+                await repository.update_user_processing_state(
+                    user.id, ProcessingStatus.queued
+                )
+
+    async def test_update_user_processing_state_missing_transaction(
+        self,
+        in_memory_click_repository: InMemoryClickRepository,
+    ) -> None:
+        """update_user_processing_state without unit_of_work raises MissingRequiredAttribute."""
+        repository = in_memory_click_repository
+        user = UserFactory.build()
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        user_id = user.id
+        with pytest.raises(MissingRequiredAttribute):
+            await repository.update_user_processing_state(
+                user_id, ProcessingStatus.queued
+            )

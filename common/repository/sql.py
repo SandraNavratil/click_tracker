@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Self, override
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from structlog import BoundLogger
 
@@ -16,6 +16,7 @@ from common.repository.abstract import AbstractClickRepository
 from dbmodels.src.database import DatabaseConnection
 from dbmodels.src.models import Click as DBClick
 from dbmodels.src.models import User as DBUser
+from common.models.enums import ProcessingStatus
 
 
 class SQLClickRepository(AbstractClickRepository):
@@ -105,6 +106,61 @@ class SQLClickRepository(AbstractClickRepository):
         db_click = self._create_db_click(click)
         self._current_transaction.add(db_click)
         return Click.model_validate(db_click)
+
+    @override
+    async def get_users_by_processing_state(
+        self, processing_state: ProcessingStatus, limit: int = 10000
+    ) -> list[User]:
+        """Get users with the given processing_state.
+
+        Args:
+            processing_state: Processing state to filter by.
+            limit: Maximum number of users to return, default is 10000.
+
+        Returns:
+            list[User]: List of users with the given processing_state.
+        """
+        if not self._current_transaction:
+            raise MissingRequiredAttribute(
+                "Session is required to get users by processing state"
+            )
+        result = await self._current_transaction.execute(
+            select(DBUser)
+            .where(DBUser.processing_state == processing_state)
+            .order_by(DBUser.created.asc())
+            .limit(limit)
+        )
+        db_users = result.scalars().all()
+        return [User.model_validate(db_user) for db_user in db_users]
+
+    @override
+    async def update_user_processing_state(
+        self, user_id: UUID, processing_state: ProcessingStatus
+    ) -> User:
+        """Update the processing state of a user.
+
+        Args:
+            user_id: User id.
+            processing_state: Processing state to update user to.
+
+        Returns:
+            User: Updated user.
+        """
+        if not self._current_transaction:
+            raise MissingRequiredAttribute(
+                "Session is required to update users processing state"
+            )
+        update_statement = (
+            update(DBUser)
+            .where(DBUser.id == user_id)
+            .values(processing_state=processing_state)
+            .returning(DBUser)
+        )
+        result = await self._current_transaction.execute(update_statement)
+        db_user = result.scalar_one_or_none()
+        if db_user is None:
+            raise EntityNotFound("User", str(user_id))
+        return User.model_validate(db_user)
 
     @staticmethod
     def _create_db_click(click: Click) -> DBClick:

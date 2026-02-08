@@ -1,7 +1,5 @@
 # Click Tracker
 
-Click Tracker is an event-driven service for recording user clicks. It processes them asynchronously via a message queue and enriches user records with external data.
-
 ## Overview
 
 ### Top-level flow
@@ -16,6 +14,29 @@ Click Tracker is an event-driven service for recording user clicks. It processes
    Consumes messages from the queue, fetches external data from an external API, then updates the database with that data and sets `processing_state='done'`.
 
 ![Architecture and workflow](docs/flow_diagram.png)
+
+### Contents
+
+- [Installing requirements](#installing-requirements)
+- [Development](#development) (Docker, Makefile, migrations)
+- [Data model](#data-model)
+- [Contributing](#contributing)
+- [API](#api)
+- [Workers](#workers) (Consumer, Cron)
+- [Tests](#tests)
+- [Load testing](#load-testing)
+
+---
+
+### Project structure
+
+| Directory   | Purpose |
+|------------|---------|
+| `api/`     | HTTP API (FastAPI): click endpoints, docs. |
+| `consumer/`| Worker that consumes the queue and enriches user data. |
+| `cron/`    | Scheduled job that finds new users and publishes to the queue. |
+| `common/`  | Shared code: models, repository abstractions, message queue. |
+| `dbmodels/`| SQLAlchemy models and Alembic migrations. |
 
 ---
 
@@ -38,6 +59,14 @@ Then create a virtual env and install dependencies:
 ```shell
 uv venv
 uv sync
+```
+
+For **development** (running tests, load tests), install optional extras:
+
+```shell
+uv sync --extra test        # pytest, factories, etc.
+uv sync --extra load        # locust (load testing)
+uv sync --all-extras       # test + load
 ```
 
 The environment is created in the top-level `.venv` folder. Use `source .venv/bin/activate` to activate it, or run commands with `uv run ...` so the venv is used automatically.
@@ -146,13 +175,17 @@ Use the **Makefile** for common tasks.
 
 # API
 
-Run it via your IDE (e.g. run `api/run.py`) or:
+For local development you can run the API via `api/run.py` (e.g. from your IDE or from the project root):
+
+```shell
+uv run python api/run.py
+```
+
+Or with uvicorn directly:
 
 ```shell
 uv run uvicorn --reload --host 0.0.0.0 --port 8080 api.app.app:app
 ```
-
-(Adjust module path if your app entry is different.)
 
 ### Environment variables
 
@@ -200,4 +233,16 @@ make test-api
 make test-consumer
 make test-cron
 make test-dbmodels
+make test-common
 ```
+
+# Load testing
+
+Load tests use [Locust](https://locust.io/). Install the `load` extra: `uv sync --extra load`.
+
+- **Headless** (e.g. 1000 users, 60s):
+  `make load-test`
+  (Start the API first: `make up-api`.)
+
+- **Web UI** (interactive, stats at http://localhost:8089):
+  `make load-test-ui`
