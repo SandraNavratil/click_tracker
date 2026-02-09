@@ -9,7 +9,7 @@ from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from structlog import BoundLogger
 
-from common.models.click import Click
+from common.models.click import Click, ClickWithUser
 from common.models.user import User
 from common.models.errors import EntityNotFound, MissingRequiredAttribute
 from common.repository.abstract import AbstractClickRepository
@@ -106,6 +106,48 @@ class SQLClickRepository(AbstractClickRepository):
         db_click = self._create_db_click(click)
         self._current_transaction.add(db_click)
         return Click.model_validate(db_click)
+
+    @override
+    async def get_clicks_with_user_by_user_id(
+        self, user_id: UUID
+    ) -> list[ClickWithUser]:
+        """Get all clicks for a user with user data from DB.
+
+        Raises EntityNotFound if no user with user_id exists.
+
+        Args:
+            user_id: User id.
+
+        Returns:
+            list[ClickWithUser]: List of clicks with user; empty if user has no clicks.
+        """
+        if not self._current_transaction:
+            raise MissingRequiredAttribute(
+                "Session is required to get clicks by user id"
+            )
+        result = await self._current_transaction.execute(
+            select(DBUser).where(DBUser.id == user_id)
+        )
+        db_user = result.scalar_one_or_none()
+        if db_user is None:
+            raise EntityNotFound("User", str(user_id))
+        user = User.model_validate(db_user)
+
+        result = await self._current_transaction.execute(
+            select(DBClick)
+            .where(DBClick.user_id == user_id)
+            .order_by(DBClick.click_timestamp.asc())
+        )
+        db_clicks = result.scalars().all()
+        if not db_clicks:
+            return []
+        return [
+            ClickWithUser(
+                **Click.model_validate(db_click).model_dump(),
+                user=user,
+            )
+            for db_click in db_clicks
+        ]
 
     @override
     async def get_users_by_processing_state(

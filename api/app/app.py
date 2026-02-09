@@ -16,7 +16,7 @@ from api.app.log_config import EndpointFilter
 from api.app.routes.docs import router as docs_router
 from api.app.routes.ping import router as ping_router
 from api.app.routes.click import router as click_router
-from common.models.errors import UnexpectedParameterValue
+from common.models.errors import EntityNotFound, UnexpectedParameterValue
 from common.settings import app_settings
 
 app = create_app()
@@ -58,6 +58,15 @@ async def validation_exception_handler(
     if app_settings.debug and exc.body is not None:
         content["body"] = exc.body
     return JSONResponse(status_code=422, content=content)
+
+
+@app.exception_handler(EntityNotFound)
+async def entity_not_found_handler(_: Request, exc: EntityNotFound) -> JSONResponse:
+    """Return 404 when a requested entity does not exist."""
+    return JSONResponse(
+        status_code=HTTPStatus.NOT_FOUND,
+        content={"detail": str(exc)},
+    )
 
 
 @app.exception_handler(UnexpectedParameterValue)

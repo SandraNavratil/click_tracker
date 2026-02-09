@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from common.models.factories import ClickFactory
+from common.models.factories import ClickFactory, UserFactory
 from dbmodels.src.models import Click as DBClick
 
 
@@ -223,3 +223,54 @@ class TestClicks:
         )
         assert response2.status_code == 201
         assert response1.json()["id"] != response2.json()["id"]
+
+    @pytest.mark.asyncio
+    async def test_get_clicks_by_user_id_empty(
+        self, async_test_client: AsyncClient, click_repository
+    ):
+        """GET /users/{user_id}/clicks returns 200 and empty list when user exists but has no clicks."""
+        user = UserFactory.build()
+        async with click_repository.unit_of_work():
+            await click_repository.save_user(user)
+        response = await async_test_client.get(f"/users/{user.id}/clicks")
+        assert response.status_code == 200
+        assert response.json() == []
+
+    @pytest.mark.asyncio
+    async def test_get_clicks_by_user_id_user_does_not_exist(
+        self, async_test_client: AsyncClient, click_repository
+    ):
+        """GET /users/{user_id}/clicks returns 404 when no user with that id exists."""
+        unknown_user_id = uuid.uuid4()
+        response = await async_test_client.get(f"/users/{unknown_user_id}/clicks")
+        assert response.status_code == 404
+        assert "detail" in response.json()
+
+    @pytest.mark.asyncio
+    async def test_get_clicks_by_user_id_success(
+        self, async_test_client: AsyncClient, click_repository
+    ):
+        """GET /users/{user_id}/clicks returns 200 and list of clicks."""
+        user = UserFactory.build()
+        click = ClickFactory.build(user_id=user.id)
+        async with click_repository.unit_of_work():
+            await click_repository.save_user(user)
+            await click_repository.save_click(click)
+        response = await async_test_client.get(f"/users/{click.user_id}/clicks")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["user_id"] == str(click.user_id)
+        assert data[0]["shop_url"] == click.shop_url
+        assert data[0]["click_timestamp"] == click.click_timestamp.isoformat()
+        assert data[0]["id"] == str(click.id)
+        assert data[0]["username"] == user.username
+        assert data[0]["email_address"] == user.email_address
+
+    @pytest.mark.asyncio
+    async def test_get_clicks_by_user_id_invalid_uuid(
+        self, async_test_client: AsyncClient
+    ):
+        """GET /users/{user_id}/clicks with invalid UUID returns 422."""
+        response = await async_test_client.get("/users/not-a-uuid/clicks")
+        assert response.status_code == 422
