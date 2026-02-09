@@ -34,6 +34,12 @@ class Controller:
 
         Args:
             message: Queue message containing at least user_id to process.
+
+        Raises:
+            NotImplementedError: When the enhancer adapter is not implemented.
+            EntityNotFound: When the user does not exist in the repository.
+            MissingRequiredAttribute: When repository operations are used outside a unit of work.
+            RuntimeError: When the repository does not support nested units of work.
         """
         bind_contextvars(user_id=message.user_id)
         logger.info("handle_message.init")

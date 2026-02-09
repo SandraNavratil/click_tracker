@@ -50,7 +50,11 @@ def configure_structlog(debug: bool, local_format: bool) -> None:
 
 
 def drop_debug_logs(_: Any, level: str, event_dict: dict[str, Any]) -> dict[str, Any]:
-    """Processor that drops the event when level is debug; otherwise returns event_dict."""
+    """Processor that drops the event when level is debug; otherwise returns event_dict.
+
+    Raises:
+        structlog.DropEvent: When the log level is debug, to drop the event from the pipeline.
+    """
     if level == "debug":
         raise structlog.DropEvent
     return event_dict

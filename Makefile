@@ -57,18 +57,18 @@ create-migration:
 	@(unset DB_URL)
 	$(DCOMPOSE) down --volumes --remove-orphans
 	$(DCOMPOSE) up -d database db_migration
-	alembic -c dbmodels/alembic.ini revision --autogenerate -m "$(name)"
+	uv run alembic -c dbmodels/alembic.ini revision --autogenerate -m "$(name)"
 	pre-commit run ruff-format --files dbmodels/alembic/versions/$(name).py
 
 .PHONY: migrate-db
 migrate-db:
 	@(unset DB_URL)
-	alembic -c dbmodels/alembic.ini upgrade head
+	uv run alembic -c dbmodels/alembic.ini upgrade head
 
 .PHONY: downgrade-db
 downgrade-db:
 	@(unset DB_URL)
-	alembic -c dbmodels/alembic.ini downgrade -1
+	uv run alembic -c dbmodels/alembic.ini downgrade -1
 
 
 .PHONY: test-setup
@@ -77,7 +77,7 @@ test-setup:
 	$(DCOMPOSE) up -d database rabbitmq
 	export ENVIRONMENT=test
 	# Wait for the database and RabbitMQ to be ready
-	@sleep 5
+	@sleep 10
 
 .PHONY: test-api
 test-api: test-setup
@@ -149,7 +149,7 @@ upgrade-requirements:
 
 .PHONY: install-requirements
 install-requirements:
-	uv venv
+	@[ -d .venv ] || uv venv
 	uv sync
 
 .PHONY: clean-test
@@ -167,6 +167,18 @@ load-test:
 .PHONY: load-test-ui
 load-test-ui:
 	uv run --extra load locust -f locustfile.py --host http://localhost:8080
+
+.PHONY: docs
+docs:
+	uv run --extra docs --extra test pdoc -o docs/click_tracker -d google \
+		api common consumer cron dbmodels \
+		!api.tests !common.tests !consumer.tests !cron.tests !dbmodels.tests
+
+.PHONY: docs-serve
+docs-serve:
+	uv run --extra docs --extra test pdoc -h localhost -p 8081 -n \
+		api common consumer cron dbmodels \
+		!api.tests !common.tests !consumer.tests !cron.tests !dbmodels.tests
 
 .PHONY: help
 help:

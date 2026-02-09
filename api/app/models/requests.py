@@ -27,6 +27,9 @@ class ClickRequest(BaseModel):
 
         Returns:
             NaiveDatetime: Parsed timestamp.
+
+        Raises:
+            ValueError: When value is None or not a supported timestamp format.
         """
         if value is None:
             raise ValueError("Timestamp is required")

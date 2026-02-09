@@ -68,6 +68,9 @@ class ClickService:
 
         Returns:
             list[ClickWithUser]: List of clicks with nested user; empty if none.
+
+        Raises:
+            EntityNotFound: When no user exists for the given user_id.
         """
         async with self.click_repository.unit_of_work():
             return await self.click_repository.get_clicks_with_user_by_user_id(user_id)
