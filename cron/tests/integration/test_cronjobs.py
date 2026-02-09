@@ -9,8 +9,8 @@ from cron.app.cronjob import run_cronjob
 
 
 @pytest.mark.asyncio
-class TestCronJobIntegration:
-    """Integration tests for cron job with SQL and RMQ."""
+class TestCronJob:
+    """Tests for cron job."""
 
     async def test_empty_database(
         self,

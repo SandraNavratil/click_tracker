@@ -2,7 +2,7 @@
 
 from copy import deepcopy
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, ClassVar, Self, cast, override
+from typing import AsyncIterator, ClassVar, Self, cast, override, Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -141,6 +141,28 @@ class InMemoryClickRepository(AbstractClickRepository):
             raise EntityNotFound("User", str(user_id))
         user = cast(User, deepcopy(user))
         user.processing_state = processing_state
+        self._uncommitted_storage[key] = user
+        return user
+
+    @override
+    async def update_user_values(self, user_id: UUID, values: dict[str, Any]) -> User:
+        """Update the values of a user.
+
+        Args:
+            user_id: User id.
+            values: Values to update user to.
+
+        Returns:
+            User: Updated user.
+        """
+        if not self.transaction_started:
+            raise MissingRequiredAttribute("Session is required to update user values.")
+        key = self._get_key(str(user_id), "user")
+        if (user := self._storage.get(key)) is None:
+            raise EntityNotFound("User", str(user_id))
+        user = cast(User, deepcopy(user))
+        for attr_name, value in values.items():
+            setattr(user, attr_name, value)
         self._uncommitted_storage[key] = user
         return user
 

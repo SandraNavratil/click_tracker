@@ -1,4 +1,4 @@
-"""Pytest fixtures for cron integration tests."""
+"""Pytest fixtures for consumer integration tests."""
 
 import asyncio
 from collections.abc import AsyncGenerator
