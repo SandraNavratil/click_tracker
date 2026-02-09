@@ -1,7 +1,7 @@
 """RMQ queue publisher and consumer."""
 
 import asyncio
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Mapping
 from functools import partial
 from typing import override
 
@@ -84,19 +84,31 @@ class RMQPublisher(AbstractQueuePublisher):
         async with self.connection_pool.acquire() as connection:
             return await connection.channel(publisher_confirms=True)
 
-    async def publish(self, message: QueueMessage, queue: QueueName) -> None:
+    async def publish(
+        self,
+        message: QueueMessage,
+        queue: QueueName,
+        *,
+        headers: Mapping[str, str | int] | None = None,
+    ) -> None:
         """Publish message as JSON to the queue. The queue must be bound to the exchange.
 
         Args:
             message: Queue message to be serialized and sent.
             queue: Queue to publish to (QueueName enum).
+            headers: Optional message headers (e.g. x-delay, x-delivery-count).
         """
         async with self.channel_pool.acquire() as channel:
             exchange = await channel.get_exchange(self.exchange_name)
+            message_kwargs: dict = {
+                "delivery_mode": DeliveryMode.PERSISTENT,
+            }
+            if headers is not None:
+                message_kwargs["headers"] = headers
             await exchange.publish(
                 aio_pika.Message(
                     message.model_dump_json().encode("utf-8"),
-                    delivery_mode=DeliveryMode.PERSISTENT,
+                    **message_kwargs,
                 ),
                 queue,
             )

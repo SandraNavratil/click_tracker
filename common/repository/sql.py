@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Self, override
+from typing import Self, override, Any
 from uuid import UUID
 
 from sqlalchemy import select, text, update
@@ -155,6 +155,28 @@ class SQLClickRepository(AbstractClickRepository):
             .where(DBUser.id == user_id)
             .values(processing_state=processing_state)
             .returning(DBUser)
+        )
+        result = await self._current_transaction.execute(update_statement)
+        db_user = result.scalar_one_or_none()
+        if db_user is None:
+            raise EntityNotFound("User", str(user_id))
+        return User.model_validate(db_user)
+
+    @override
+    async def update_user_values(self, user_id: UUID, values: dict[str, Any]) -> User:
+        """Update the values of a user.
+
+        Args:
+            user_id: User id.
+            values: Attributes to update (e.g. username, email_address, processing_state).
+
+        Returns:
+            User: Updated user as stored in the database.
+        """
+        if not self._current_transaction:
+            raise MissingRequiredAttribute("Session is required to update user values")
+        update_statement = (
+            update(DBUser).where(DBUser.id == user_id).values(values).returning(DBUser)
         )
         result = await self._current_transaction.execute(update_statement)
         db_user = result.scalar_one_or_none()

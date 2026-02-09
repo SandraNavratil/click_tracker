@@ -3,9 +3,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Self
+from typing import Self, Any
 from uuid import UUID
-
 from structlog import BoundLogger
 
 from common.models.click import Click
@@ -93,6 +92,18 @@ class AbstractClickRepository(ABC):
         Args:
             user_id: User id.
             processing_state: Processing state to update user to.
+
+        Returns:
+            User: Updated user.
+        """
+
+    @abstractmethod
+    async def update_user_values(self, user_id: UUID, values: dict[str, Any]) -> User:
+        """Update the values of a user.
+
+        Args:
+            user_id: User id.
+            values: Values to update user to.
 
         Returns:
             User: Updated user.

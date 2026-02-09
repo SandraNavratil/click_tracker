@@ -268,3 +268,57 @@ class TestSQLClickRepository:
             await repository.update_user_processing_state(
                 user_id, ProcessingStatus.queued
             )
+
+    async def test_update_user_values_success(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """update_user_values updates fields and persists after commit."""
+        repository = SQLClickRepository(logger, db_connection)
+        user = UserFactory.build(
+            username="old_name",
+            email_address="old@example.com",
+            processing_state=ProcessingStatus.new,
+        )
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        new_username = "new_name"
+        new_email = "new@example.com"
+        async with repository.unit_of_work():
+            updated = await repository.update_user_values(
+                user.id,
+                {
+                    "username": new_username,
+                    "email_address": new_email,
+                    "processing_state": ProcessingStatus.done,
+                },
+            )
+        assert updated.username == new_username
+        assert updated.email_address == new_email
+        assert updated.processing_state == ProcessingStatus.done
+        async with repository.unit_of_work():
+            loaded = await repository.get_user(user.id)
+        assert loaded.username == new_username
+        assert loaded.email_address == new_email
+        assert loaded.processing_state == ProcessingStatus.done
+
+    async def test_update_user_values_not_found(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """update_user_values for non-existent user raises EntityNotFound."""
+        repository = SQLClickRepository(logger, db_connection)
+        user = UserFactory.build()
+        with pytest.raises(EntityNotFound):
+            async with repository.unit_of_work():
+                await repository.update_user_values(user.id, {"username": "updated"})
+
+    async def test_update_user_values_missing_transaction(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """update_user_values without unit_of_work raises MissingRequiredAttribute."""
+        repository = SQLClickRepository(logger, db_connection)
+        user = UserFactory.build()
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        user_id = user.id
+        with pytest.raises(MissingRequiredAttribute):
+            await repository.update_user_values(user_id, {"username": "updated"})
