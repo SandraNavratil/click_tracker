@@ -1,6 +1,8 @@
 """Click tracking business logic and persistence."""
 
-from common.models.click import Click
+from uuid import UUID
+
+from common.models.click import Click, ClickWithUser
 from common.models.errors import EntityNotFound
 from common.repository.abstract import AbstractClickRepository
 
@@ -55,3 +57,17 @@ class ClickService:
             user_id=str(click.user_id),
         )
         return click
+
+    async def get_clicks_with_user_by_user_id(
+        self, user_id: UUID
+    ) -> list[ClickWithUser]:
+        """Get all clicks for a user.
+
+        Args:
+            user_id: User id.
+
+        Returns:
+            list[ClickWithUser]: List of clicks with nested user; empty if none.
+        """
+        async with self.click_repository.unit_of_work():
+            return await self.click_repository.get_clicks_with_user_by_user_id(user_id)

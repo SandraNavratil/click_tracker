@@ -157,6 +157,59 @@ class TestSQLClickRepository:
         with pytest.raises(MissingRequiredAttribute):
             await repository.get_user(user_id)
 
+    @pytest.mark.parametrize("click_count", [0, 1, 2])
+    async def test_get_clicks_with_user_by_user_id(
+        self, db_connection: DatabaseConnection, click_count: int
+    ) -> None:
+        """get_clicks_with_user_by_user_id returns clicks with user, ordered by timestamp."""
+        repository = SQLClickRepository(logger, db_connection)
+        user = UserFactory.build()
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        clicks = [ClickFactory.build(user_id=user.id) for _ in range(click_count)]
+        async with repository.unit_of_work():
+            for click in clicks:
+                await repository.save_click(click)
+        async with repository.unit_of_work():
+            result = await repository.get_clicks_with_user_by_user_id(user.id)
+        assert len(result) == click_count
+        assert [click.user_id for click in result] == [user.id] * click_count
+        for click in result:
+            assert click.user == user
+        if click_count > 1:
+            assert result == sorted(result, key=lambda click: click.click_timestamp)
+
+    async def test_get_clicks_with_user_by_user_id_empty(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """get_clicks_with_user_by_user_id returns empty list for user_id with no clicks."""
+        repository = SQLClickRepository(logger, db_connection)
+        user = UserFactory.build()
+        async with repository.unit_of_work():
+            await repository.save_user(user)
+        async with repository.unit_of_work():
+            result = await repository.get_clicks_with_user_by_user_id(user.id)
+        assert result == []
+
+    async def test_get_clicks_with_user_by_user_id_user_does_not_exist(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """get_clicks_with_user_by_user_id raises EntityNotFound when user does not exist."""
+        repository = SQLClickRepository(logger, db_connection)
+        unknown_user_id = UserFactory.build().id
+        with pytest.raises(EntityNotFound):
+            async with repository.unit_of_work():
+                await repository.get_clicks_with_user_by_user_id(unknown_user_id)
+
+    async def test_get_clicks_with_user_by_user_id_missing_transaction(
+        self, db_connection: DatabaseConnection
+    ) -> None:
+        """get_clicks_with_user_by_user_id without unit_of_work raises MissingRequiredAttribute."""
+        repository = SQLClickRepository(logger, db_connection)
+        user_id = UserFactory.build().id
+        with pytest.raises(MissingRequiredAttribute):
+            await repository.get_clicks_with_user_by_user_id(user_id)
+
     async def test_get_users_by_processing_state_returns_only_matching(
         self, db_connection: DatabaseConnection
     ) -> None:

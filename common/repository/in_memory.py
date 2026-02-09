@@ -8,7 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel
 from structlog import BoundLogger
 
-from common.models.click import Click
+from common.models.click import Click, ClickWithUser
 from common.models.user import User
 from common.models.errors import EntityNotFound, MissingRequiredAttribute
 from common.repository.abstract import AbstractClickRepository
@@ -94,6 +94,47 @@ class InMemoryClickRepository(AbstractClickRepository):
             raise MissingRequiredAttribute("Session is required to save new click.")
         self._uncommitted_storage[self._get_key(str(click.id), "click")] = click
         return click
+
+    @override
+    async def get_clicks_with_user_by_user_id(
+        self, user_id: UUID
+    ) -> list[ClickWithUser]:
+        """Get all clicks for a user with user data.
+
+        Raises EntityNotFound if no user with user_id exists.
+
+        Args:
+            user_id: User id.
+
+        Returns:
+            list[ClickWithUser]: List of clicks with user; empty if user has no clicks.
+        """
+        if not self.transaction_started:
+            raise MissingRequiredAttribute(
+                "Session is required to get clicks by user id."
+            )
+        user = self._storage.get(self._get_key(str(user_id), "user"))
+        if user is None:
+            raise EntityNotFound("User", str(user_id))
+        user = cast(User, user)
+        clicks = [
+            cast(Click, value)
+            for key, value in self._storage.items()
+            if key.startswith("click_") and cast(Click, value).user_id == user_id
+        ]
+        clicks = sorted(clicks, key=lambda click: click.click_timestamp)
+        if not clicks:
+            return []
+        return [
+            ClickWithUser(
+                id=click.id,
+                user_id=click.user_id,
+                shop_url=click.shop_url,
+                click_timestamp=click.click_timestamp,
+                user=user,
+            )
+            for click in clicks
+        ]
 
     @override
     async def get_users_by_processing_state(

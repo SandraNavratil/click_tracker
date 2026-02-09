@@ -7,7 +7,7 @@ from typing import Self, Any
 from uuid import UUID
 from structlog import BoundLogger
 
-from common.models.click import Click
+from common.models.click import Click, ClickWithUser
 from common.models.user import User
 from common.models.enums import ProcessingStatus
 
@@ -67,6 +67,19 @@ class AbstractClickRepository(ABC):
 
         Returns:
             Click: Saved click.
+        """
+
+    @abstractmethod
+    async def get_clicks_with_user_by_user_id(
+        self, user_id: UUID
+    ) -> list[ClickWithUser]:
+        """Get all clicks for a user with user data.
+
+        Args:
+            user_id: User id.
+
+        Returns:
+            list[ClickWithUser]: List of clicks with user; empty if none.
         """
 
     @abstractmethod
