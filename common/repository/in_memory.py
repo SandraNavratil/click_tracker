@@ -37,6 +37,9 @@ class InMemoryClickRepository(AbstractClickRepository):
 
         Returns:
             Self: Unit of work.
+
+        Raises:
+            Exception: Re-raises any exception raised inside the context after rollback.
         """
         try:
             self.transaction_started = True
@@ -50,13 +53,17 @@ class InMemoryClickRepository(AbstractClickRepository):
 
     @override
     async def get_user(self, user_id: UUID) -> User:
-        """Return the user for the given id (raises EntityNotFound if not found).
+        """Return the user for the given id.
 
         Args:
             user_id: User id.
 
         Returns:
             User: User.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
         if not self.transaction_started:
             raise MissingRequiredAttribute("Session is required to get user.")
@@ -74,6 +81,9 @@ class InMemoryClickRepository(AbstractClickRepository):
 
         Returns:
             User: Saved user.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
         """
         if not self.transaction_started:
             raise MissingRequiredAttribute("Session is required to save new user.")
@@ -89,6 +99,9 @@ class InMemoryClickRepository(AbstractClickRepository):
 
         Returns:
             Click: Saved click.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
         """
         if not self.transaction_started:
             raise MissingRequiredAttribute("Session is required to save new click.")
@@ -101,13 +114,15 @@ class InMemoryClickRepository(AbstractClickRepository):
     ) -> list[ClickWithUser]:
         """Get all clicks for a user with user data.
 
-        Raises EntityNotFound if no user with user_id exists.
-
         Args:
             user_id: User id.
 
         Returns:
             list[ClickWithUser]: List of clicks with user; empty if user has no clicks.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
         if not self.transaction_started:
             raise MissingRequiredAttribute(
@@ -148,6 +163,9 @@ class InMemoryClickRepository(AbstractClickRepository):
 
         Returns:
             list[User]: List of users with the given processing_state.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
         """
         if not self.transaction_started:
             raise MissingRequiredAttribute(
@@ -172,6 +190,10 @@ class InMemoryClickRepository(AbstractClickRepository):
 
         Returns:
             User: Updated user.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
         if not self.transaction_started:
             raise MissingRequiredAttribute(
@@ -195,6 +217,10 @@ class InMemoryClickRepository(AbstractClickRepository):
 
         Returns:
             User: Updated user.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
         if not self.transaction_started:
             raise MissingRequiredAttribute("Session is required to update user values.")

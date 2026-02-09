@@ -38,6 +38,9 @@ async def get_clicks_by_user_id(
 
     Returns:
         list[ClickWithUserResponse]: List of clicks with user fields; empty if none.
+
+    Raises:
+        EntityNotFound: When no user exists for the given user_id.
     """
     clicks_with_user = await click_service.get_clicks_with_user_by_user_id(user_id)
     return [

@@ -56,8 +56,9 @@ services:
     depends_on:
       db_migration:
         condition: service_completed_successfully
-    env_file:
-      - .docker.env
+    environment:
+      DB_URL: "postgresql+asyncpg://user:password@database:5432/click_tracker"
+      RMQ_URL: "amqp://guest:guest@rabbitmq:5672"
     networks:
       - network
   consumer:
@@ -73,8 +74,9 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
-    env_file:
-      - .docker.env
+    environment:
+      DB_URL: "postgresql+asyncpg://user:password@database:5432/click_tracker"
+      RMQ_URL: "amqp://guest:guest@rabbitmq:5672"
     networks:
       - network
   cron:
@@ -90,8 +92,9 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
-    env_file:
-      - .docker.env
+    environment:
+      DB_URL: "postgresql+asyncpg://user:password@database:5432/click_tracker"
+      RMQ_URL: "amqp://guest:guest@rabbitmq:5672"
     networks:
       - network
 networks:

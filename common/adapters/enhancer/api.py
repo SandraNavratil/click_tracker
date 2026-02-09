@@ -18,6 +18,9 @@ class ApiEnhancer(AbstractEnhancer):
 
         Returns:
             UserProfile: username and email_address.
+
+        Raises:
+            NotImplementedError: This adapter is not implemented; use InMemoryEnhancer instead.
         """
         raise NotImplementedError(
             "ApiEnhancer is not implemented; use InMemoryEnhancer or implement API client."

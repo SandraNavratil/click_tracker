@@ -45,6 +45,9 @@ class SQLClickRepository(AbstractClickRepository):
 
         Returns:
             Self: Unit of work.
+
+        Raises:
+            RuntimeError: When called while already inside a unit of work.
         """
         if self._current_transaction:
             raise RuntimeError("Nested unit of work is not supported")
@@ -64,6 +67,10 @@ class SQLClickRepository(AbstractClickRepository):
 
         Returns:
             User: User.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
         if not self._current_transaction:
             raise MissingRequiredAttribute("Session is required to get user")
@@ -84,6 +91,9 @@ class SQLClickRepository(AbstractClickRepository):
 
         Returns:
             User: Saved user.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
         """
         if not self._current_transaction:
             raise MissingRequiredAttribute("Session is required to save user")
@@ -100,6 +110,9 @@ class SQLClickRepository(AbstractClickRepository):
 
         Returns:
             Click: Saved click as stored in the DB.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
         """
         if not self._current_transaction:
             raise MissingRequiredAttribute("Session is required to save click")
@@ -113,13 +126,15 @@ class SQLClickRepository(AbstractClickRepository):
     ) -> list[ClickWithUser]:
         """Get all clicks for a user with user data from DB.
 
-        Raises EntityNotFound if no user with user_id exists.
-
         Args:
             user_id: User id.
 
         Returns:
             list[ClickWithUser]: List of clicks with user; empty if user has no clicks.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
         if not self._current_transaction:
             raise MissingRequiredAttribute(
@@ -161,6 +176,9 @@ class SQLClickRepository(AbstractClickRepository):
 
         Returns:
             list[User]: List of users with the given processing_state.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
         """
         if not self._current_transaction:
             raise MissingRequiredAttribute(
@@ -187,6 +205,10 @@ class SQLClickRepository(AbstractClickRepository):
 
         Returns:
             User: Updated user.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
         if not self._current_transaction:
             raise MissingRequiredAttribute(
@@ -214,6 +236,10 @@ class SQLClickRepository(AbstractClickRepository):
 
         Returns:
             User: Updated user as stored in the database.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
         if not self._current_transaction:
             raise MissingRequiredAttribute("Session is required to update user values")

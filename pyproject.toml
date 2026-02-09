@@ -16,6 +16,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+docs = [
+    "pdoc>=16.0.0",
+]
 load = [
     "locust>=2.36.0",
 ]

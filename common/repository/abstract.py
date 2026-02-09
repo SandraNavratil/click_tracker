@@ -31,6 +31,9 @@ class AbstractClickRepository(ABC):
 
         Returns:
             Self: Unit of work.
+
+        Raises:
+            NotImplementedError: When called on the abstract base (use a concrete implementation).
         """
         # This method would ideally be abstract, but there are issues with asynccontextmanager and abstractmethod.
         # See: https://stackoverflow.com/questions/54204990/python-abstractmethod-with-asynccontextmanager
@@ -45,6 +48,10 @@ class AbstractClickRepository(ABC):
 
         Returns:
             User: User entity.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
 
     @abstractmethod
@@ -56,6 +63,9 @@ class AbstractClickRepository(ABC):
 
         Returns:
             User: Saved user.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
         """
 
     @abstractmethod
@@ -67,6 +77,9 @@ class AbstractClickRepository(ABC):
 
         Returns:
             Click: Saved click.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
         """
 
     @abstractmethod
@@ -80,6 +93,10 @@ class AbstractClickRepository(ABC):
 
         Returns:
             list[ClickWithUser]: List of clicks with user; empty if none.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
 
     @abstractmethod
@@ -94,6 +111,9 @@ class AbstractClickRepository(ABC):
 
         Returns:
             list[User]: List of users with the given processing_state.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
         """
 
     @abstractmethod
@@ -108,6 +128,10 @@ class AbstractClickRepository(ABC):
 
         Returns:
             User: Updated user.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
 
     @abstractmethod
@@ -120,4 +144,8 @@ class AbstractClickRepository(ABC):
 
         Returns:
             User: Updated user.
+
+        Raises:
+            MissingRequiredAttribute: When not called within a unit of work.
+            EntityNotFound: When no user exists for the given user_id.
         """
