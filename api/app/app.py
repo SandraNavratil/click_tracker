@@ -26,9 +26,7 @@ app.include_router(click_router)
 
 
 @app.exception_handler(SQLAlchemyError)
-async def sqlalchemy_error_handler(
-    request: Request, exc: SQLAlchemyError
-) -> JSONResponse:
+async def sqlalchemy_error_handler(_: Request, exc: SQLAlchemyError) -> JSONResponse:
     """Handle SQLAlchemyError exceptions."""
     logger.exception("sqlalchemy_error", detail=str(exc))
     detail = str(exc) if app_settings.debug else "An unexpected error occurred"
@@ -39,7 +37,7 @@ async def sqlalchemy_error_handler(
 
 
 @app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def general_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     """Handle any unhandled exceptions."""
     logger.exception("unhandled_error", detail=str(exc))
     return JSONResponse(
@@ -54,6 +52,7 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     """Handle validation errors and format them to human-readable JSONResponse."""
     logger.exception("validation_error", detail=exc.errors(), body=exc.body)
+    # Not everything in exc.errors() is serializable
     content = {"detail": json.loads(json.dumps(exc.errors(), default=str))}
     if app_settings.debug and exc.body is not None:
         content["body"] = exc.body

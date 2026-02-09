@@ -13,7 +13,7 @@ COPY pyproject.toml /app/pyproject.toml
 ENV UV_PROJECT_ENVIRONMENT=/usr/local
 ENV UV_LINK_MODE=copy
 
-RUN   uv sync --frozen --all-groups
+RUN uv sync --frozen --all-groups
 
 ARG INSTALL_TEST_DEPS=0
 RUN if [ "$INSTALL_TEST_DEPS" = "1" ]; then uv sync --frozen --all-extras; fi
@@ -27,8 +27,8 @@ LABEL name=click_tracker
 COPY cron/run.py ./run_cron.py
 COPY consumer/run.py ./run_consumer.py
 
-COPY dbmodels ./dbmodels/
-COPY common ./common/
-COPY api ./api/
+COPY dbmodels ./dbmodels
+COPY common ./common
+COPY api ./api
 COPY consumer ./consumer
 COPY cron ./cron

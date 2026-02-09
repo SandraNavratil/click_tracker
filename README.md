@@ -104,7 +104,6 @@ Use the **Makefile** for common tasks.
 
 - `make clean` — Stop and remove containers, networks, and volumes.
 - `make clean-deep` — Same as above and remove all images.
-- `make clean-test` — Clean up test resources.
 
 #### Pre-commit
 
@@ -183,7 +182,7 @@ The codebase uses a few well-known patterns to keep persistence and workflows cl
   The cron job publishes work to a queue; the consumer processes it asynchronously. This decouples “record the click” from “enrich user data,” improves resilience (retries, DLQ), and lets the API stay fast while heavy or external work runs in the background.
 
 - **Dependency injection**
-  Services (e.g. click tracking, consumer controller) receive the repository and other dependencies via constructors. That keeps the code testable (inject mocks or in-memory implementations) and makes the actual wiring (SQL vs in-memory, which enhancer) a configuration concern.
+  Services (e.g. click tracking, user service) receive the repository and other dependencies via constructors. That keeps the code testable (inject mocks or in-memory implementations) and makes the actual wiring (SQL vs in-memory, which enhancer) a configuration concern.
 
 ---
 

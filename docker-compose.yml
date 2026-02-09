@@ -80,7 +80,7 @@ services:
     networks:
       - network
   cron:
-    restart: "no"
+    restart: unless-stopped
     profiles:
       - apps
     build:
