@@ -7,9 +7,9 @@ from enum import StrEnum, auto
 class ProcessingStatus(StrEnum):
     """Lifecycle state of a user."""
 
-    new = "new"
-    queued = "queued"
-    done = "done"
+    new = auto()
+    queued = auto()
+    done = auto()
 
 
 # -- Settings --

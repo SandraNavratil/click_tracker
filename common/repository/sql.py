@@ -153,9 +153,7 @@ class SQLClickRepository(AbstractClickRepository):
             .where(DBClick.user_id == user_id)
             .order_by(DBClick.click_timestamp.asc())
         )
-        db_clicks = result.scalars().all()
-        if not db_clicks:
-            return []
+        db_clicks = result.scalars().all() or []
         return [
             ClickWithUser(
                 **Click.model_validate(db_click).model_dump(),

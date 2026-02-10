@@ -9,7 +9,7 @@ from common.settings import rabbit_settings
 from common.message_queue.rmq_queue import RMQPublisher
 from common.models.queue import QueueMessage, QueueName
 from common.repository.sql import SQLClickRepository
-from consumer.app.services.controller import Controller
+from consumer.app.services.userservice import UserService
 from dbmodels.src.database import DatabaseConnection
 from dbmodels.src.settings import settings as db_settings
 from common.adapters.enhancer.in_memory import InMemoryEnhancer
@@ -26,7 +26,7 @@ rmq_publisher = RMQPublisher(
 
 async def requeue_message(
     message: QueueMessage,
-    ch: AbstractChannel,
+    channel: AbstractChannel,
     delivery_tag: int,
     should_retry: bool = False,
     delay_time_min: int = 5,
@@ -36,20 +36,20 @@ async def requeue_message(
 
     Args:
         message: The queue message to nack or republish.
-        ch: AMQP channel for ack/nack.
+        channel: AMQP channel for ack/nack.
         delivery_tag: Delivery tag to ack or nack.
         should_retry: If True, republish message with delay then ack; otherwise nack (send to DLQ).
         delay_time_min: Delay in minutes before message is visible again (used when should_retry).
         delivery_count: Current delivery count; incremented when republishing.
     """
     if not should_retry:
-        await ch.basic_nack(delivery_tag=delivery_tag, requeue=False)
+        await channel.basic_nack(delivery_tag=delivery_tag, requeue=False)
         return
 
-    delay_time = delay_time_min * 60 * 1000
-    properties = {"x-delay": delay_time, "x-delivery-count": delivery_count + 1}
+    delay_time_ms = delay_time_min * 60 * 1000
+    properties = {"x-delay": delay_time_ms, "x-delivery-count": delivery_count + 1}
     await rmq_publisher.publish(message, QueueName.CLICK_TRACKER, headers=properties)
-    await ch.basic_ack(delivery_tag=delivery_tag)
+    await channel.basic_ack(delivery_tag=delivery_tag)
 
 
 def handle_exception(e: Exception, last_try: bool) -> bool:
@@ -73,9 +73,9 @@ def handle_exception(e: Exception, last_try: bool) -> bool:
 async def handle_incoming_message(
     message: AbstractIncomingMessage,
 ) -> None:
-    """Parse RMQ message, run controller logic, ack or requeue on success/failure.
+    """Parse RMQ message, run UserService logic, ack or requeue on success/failure.
 
-    Deserializes the body as QueueMessage, runs Controller.handle_message within a
+    Deserializes the body as QueueMessage, runs UserService.process_message within a
     unit of work, and acks on success. On exception, logs and optionally requeues
     with delay based on retry count.
 
@@ -89,17 +89,17 @@ async def handle_incoming_message(
 
     message_headers = message.headers or {}
     delivery_count = int(message_headers.get("x-delivery-count", "0"))
-    last_try = delivery_count >= rabbit_settings.max_retry_count
+    is_last_try = delivery_count >= rabbit_settings.max_retry_count
 
     click_repository = SQLClickRepository(logger, db_connection)
 
     try:
-        await Controller(
+        await UserService(
             click_repository=click_repository,
             enhancer_adapter=enhancer_adapter,
-        ).handle_message(payload)
+        ).process_message(payload)
     except Exception as e:
-        should_retry = handle_exception(e, last_try)
+        should_retry = handle_exception(e, is_last_try)
         await requeue_message(
             payload,
             message.channel,

@@ -14,14 +14,14 @@ up-db_migration:
 
 .PHONY: up-apps
 up-apps: up
-	$(DCOMPOSE) up -d --profile apps
+	$(DCOMPOSE) up -d api consumer cron
 
 .PHONY: up-api
 up-api:
 	$(DCOMPOSE) up -d database
 	@sleep 3
 	$(DCOMPOSE) up db_migration
-	$(DCOMPOSE) --profile apps up -d api
+	$(DCOMPOSE) up -d api
 
 .PHONY: up-consumer
 up-consumer: up
@@ -151,11 +151,6 @@ upgrade-requirements:
 install-requirements:
 	@[ -d .venv ] || uv venv
 	uv sync
-
-.PHONY: clean-test
-clean-test:
-	@echo "Cleaning up test resources..."
-	$(DCOMPOSE) down --volumes --remove-orphans
 
 # Load test: 1000 req/s for 60s (start API first: make up-api)
 .PHONY: load-test

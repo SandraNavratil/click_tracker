@@ -4,7 +4,7 @@ from common.message_queue.abstract import AbstractQueuePublisher
 from common.models.enums import ProcessingStatus
 from common.models.queue import QueueMessage, QueueName
 from common.repository.abstract import AbstractClickRepository
-
+from common.models.user import User
 from cron.app import logger
 
 
@@ -19,6 +19,7 @@ async def run_cronjob(
         rmq_publisher: Publisher to publish users to RMQ.
     """
     logger.debug("cron.started")
+    new_users: list[User] = []
     async with repository.unit_of_work():
         new_users = await repository.get_users_by_processing_state(ProcessingStatus.new)
     logger.info("cron.new_users", number_of_new_users=len(new_users))
